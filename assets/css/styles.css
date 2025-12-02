@@ -1,0 +1,85 @@
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfbf7; /* Warm neutral background */
+            color: #1f2937;
+        }
+
+        /* Chart Container Styling - STRICT ADHERENCE TO PROMPT */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Explicit max-width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Game Board Styles */
+        .game-board-snake { background-color: #111827; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .game-board-tetris { background-color: #0d0d0d; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .game-cell-ttt { transition: all 0.2s; }
+        .game-cell-ttt:hover { background-color: #f3f4f6; }
+        
+        /* Memory Card Flip Animation */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .rotate-y-0 { transform: rotateY(0deg); }
+        
+        /* Wordle Styles */
+        .wordle-tile { transition: all 0.3s ease; }
+        .shake { animation: shake 0.5s; }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+        
+        /* 2048 Tile Styles */
+        .tile-container-2048 {
+            background: #ccc;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .tile-2048 {
+            height: 60px;
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .tile-0 { background: #eee4da59; color: #776e6500; }
+        .tile-2 { background: #eee4da; color: #776e65; }
+        .tile-4 { background: #ede0c8; color: #776e65; }
+        .tile-8 { background: #f2b179; color: #f9f6f2; }
+        .tile-16 { background: #f59563; color: #f9f6f2; }
+        .tile-32 { background: #f67c5f; color: #f9f6f2; }
+        .tile-64 { background: #f65e3b; color: #f9f6f2; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 1rem; }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 1rem; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
