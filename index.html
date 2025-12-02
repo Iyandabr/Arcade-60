@@ -606,6 +606,9 @@
                 this.gameLoop = null;
                 this.isGameOver = false;
                 this.keyListener = null;
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.touchListeners = [];
                 this.init();
             }
 
@@ -618,16 +621,17 @@
                             <div class="text-lg font-bold mb-4">Level: <span id="tetris-level">1</span></div>
                             <div class="mt-4 text-sm text-gray-500">Controls:</div>
                             <ul class="text-xs text-gray-600 list-disc list-inside">
-                                <li>← / →: Move</li>
-                                <li>↑ / X: Rotate</li>
-                                <li>↓ / S: Soft Drop</li>
-                                <li>Space: Hard Drop</li>
+                                <li>← / →: Move (or Horizontal Swipe)</li>
+                                <li>↑ / X: Rotate (or Tap)</li>
+                                <li>↓ / S: Soft Drop (or Swipe Down)</li>
+                                <li>Space: Hard Drop (or Double Tap)</li>
                             </ul>
                             <div id="tetris-message" class="mt-4 text-red-500 font-bold hidden"></div>
                         </div>
                     </div>
                 `;
-                this.ctx = document.getElementById('tetris-canvas').getContext('2d');
+                this.canvas = document.getElementById('tetris-canvas');
+                this.ctx = this.canvas.getContext('2d');
                 this.startGame();
                 this.bindControls();
             }
@@ -635,6 +639,63 @@
             bindControls() {
                 this.keyListener = this.handleKey.bind(this);
                 document.addEventListener('keydown', this.keyListener);
+                this.bindTouchControls();
+            }
+            
+            bindTouchControls() {
+                const swipeThreshold = 30; // Min pixels for a swipe
+                let touchStartTime = 0;
+                let lastTapTime = 0;
+                const doubleTapDelay = 300;
+
+                const handleTouchStart = (e) => {
+                    if (this.isGameOver) return;
+                    e.preventDefault();
+                    this.touchStartX = e.touches[0].clientX;
+                    this.touchStartY = e.touches[0].clientY;
+                    touchStartTime = Date.now();
+                };
+
+                const handleTouchEnd = (e) => {
+                    if (this.isGameOver) return;
+                    e.preventDefault();
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const dx = touchEndX - this.touchStartX;
+                    const dy = touchEndY - this.touchStartY;
+                    const dt = Date.now() - touchStartTime;
+
+                    if (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold) {
+                        // Swipe detected
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            // Horizontal swipe
+                            dx > 0 ? this.movePiece(1, 0) : this.movePiece(-1, 0);
+                        } else {
+                            // Vertical swipe
+                            dy > swipeThreshold ? this.softDrop() : (dy < -swipeThreshold ? this.rotatePiece() : null); // Swipe down for soft drop, up for rotate
+                        }
+                    } else if (dt < 250) {
+                        // Tap detected
+                        if (Date.now() - lastTapTime < doubleTapDelay) {
+                            // Double tap: Hard Drop
+                            this.hardDrop();
+                            lastTapTime = 0; // Reset for next tap sequence
+                        } else {
+                            // Single tap: Rotate
+                            this.rotatePiece();
+                            lastTapTime = Date.now();
+                        }
+                    }
+                    this.draw();
+                };
+
+                this.canvas.addEventListener('touchstart', handleTouchStart);
+                this.canvas.addEventListener('touchend', handleTouchEnd);
+
+                this.touchListeners = [
+                    { event: 'touchstart', handler: handleTouchStart },
+                    { event: 'touchend', handler: handleTouchEnd }
+                ];
             }
             
             handleKey(e) {
@@ -808,6 +869,10 @@
             cleanup() {
                 clearInterval(this.gameLoop);
                 document.removeEventListener('keydown', this.keyListener);
+                 // Clean up touch listeners
+                this.touchListeners.forEach(({ event, handler }) => {
+                    this.canvas.removeEventListener(event, handler);
+                });
             }
         }
 
