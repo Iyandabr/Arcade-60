@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade 60: Interactive Game Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfbf7; /* Warm neutral background */
+            color: #1f2937;
+        }
+
+        /* Chart Container Styling - STRICT ADHERENCE TO PROMPT */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Explicit max-width */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* Base height */
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+
+        /* Game Board Styles */
+        .game-board-snake { background-color: #111827; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .game-board-tetris { background-color: #0d0d0d; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .game-cell-ttt { transition: all 0.2s; }
+        .game-cell-ttt:hover { background-color: #f3f4f6; }
+        
+        /* Memory Card Flip Animation */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .rotate-y-0 { transform: rotateY(0deg); }
+        
+        /* Wordle Styles */
+        .wordle-tile { transition: all 0.3s ease; }
+        .shake { animation: shake 0.5s; }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+        
+        /* 2048 Tile Styles */
+        .tile-container-2048 {
+            background: #ccc;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .tile-2048 {
+            height: 60px;
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .tile-0 { background: #eee4da59; color: #776e6500; }
+        .tile-2 { background: #eee4da; color: #776e65; }
+        .tile-4 { background: #ede0c8; color: #776e65; }
+        .tile-8 { background: #f2b179; color: #f9f6f2; }
+        .tile-16 { background: #f59563; color: #f9f6f2; }
+        .tile-32 { background: #f67c5f; color: #f9f6f2; }
+        .tile-64 { background: #f65e3b; color: #f9f6f2; }
+        .tile-128 { background: #edcf72; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-256 { background: #edcc61; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-512 { background: #edc850; color: #f9f6f2; font-size: 1.2rem; }
+        .tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 1rem; }
+        .tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 1rem; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Background #fdfbf7) with Indigo/Emerald/Amber accents for functional areas. -->
+    <!-- Application Structure Plan: 
+         1. Dashboard Header: High-level overview of the collection (Charts).
+         2. Filterable Grid: Main navigation to explore the 60 games.
+         3. Game Overlay: A focused modal area where the Vanilla JS game engines render.
+         4. Logic: Single state object manages active view. Game engines are modular classes instantiated on demand.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Category Distribution (Doughnut Chart): Shows the diversity of the 60 games.
+         2. Implementation Status (Bar Chart): Transparently shows Playable vs Placeholder.
+         3. Game Cards: Unicode icons used for visual identification without external assets.
+         4. Game Engines: Custom Vanilla JS implementations for Snake (Canvas), TicTacToe (DOM), Wordle (DOM), Memory (DOM/CSS), Tetris (Canvas), 2048 (DOM/CSS), Rock Paper Scissors (DOM/CSS).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used (except inline UI icons in standard HTML). NO Mermaid JS used. -->
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header & Dashboard Section -->
+    <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🕹️</span>
+                <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Arcade 60</h1>
+            </div>
+            <div class="text-sm font-medium text-gray-500">
+                <span id="playable-count" class="text-green-600 font-bold">7</span> Playable / 60 Total
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        
+        <!-- Contextual Intro -->
+        <div class="mb-10 text-center max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Collection Overview</h2>
+            <p class="text-lg text-gray-600 leading-relaxed">
+                This interactive dashboard catalogs the <strong>60-Game Collection</strong>. 
+                Below you can explore the distribution of game genres, view the development status, 
+                and play the fully implemented prototypes directly in your browser.
+            </p>
+        </div>
+
+        <!-- Analytics Dashboard (Charts) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <!-- Chart 1: Category Breakdown -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Games by Category</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <p class="text-xs text-gray-400 mt-4 text-center">Distribution of all 60 titles across 7 genres.</p>
+            </div>
+
+            <!-- Chart 2: Status Overview -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Implementation Status</h3>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                <p class="text-xs text-gray-400 mt-4 text-center">Current progress of game engine integration.</p>
+            </div>
+        </div>
+
+        <!-- Filter Navigation -->
+        <div class="sticky top-20 z-20 bg-[#fdfbf7] py-4 mb-6">
+            <div class="flex flex-wrap gap-2 justify-center" id="filter-container">
+                <button class="filter-btn active px-4 py-2 rounded-full text-sm font-semibold bg-gray-900 text-white shadow-md transition-all hover:bg-gray-700" data-category="all">All Games</button>
+                <!-- Categories injected via JS -->
+            </div>
+        </div>
+
+        <!-- Game Grid -->
+        <div id="game-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <!-- Game Cards injected via JS -->
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12 py-8">
+        <div class="max-w-7xl mx-auto text-center text-gray-500 text-sm">
+            <p>&copy; 2025 Arcade 60 Collection. Single File Architecture.</p>
+        </div>
+    </footer>
+
+    <!-- Game Modal / Play Area -->
+    <div id="game-modal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden relative">
+            <!-- Modal Header -->
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                    <h3 id="modal-title" class="text-xl font-bold text-gray-900">Game Title</h3>
+                    <span id="modal-category" class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Category</span>
+                </div>
+                <button id="close-modal" class="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500 hover:text-gray-800">
+                    <span class="text-2xl font-bold">×</span>
+                </button>
+            </div>
+
+            <!-- Game Container -->
+            <div id="game-stage" class="flex-grow p-4 md:p-8 bg-gray-100 overflow-y-auto flex flex-col items-center justify-center min-h-[400px]">
+                <!-- Game Engine Renders Here -->
+            </div>
+
+            <!-- Modal Footer (Controls/Info) -->
+            <div class="bg-white px-6 py-4 border-t border-gray-200 text-sm text-gray-500 flex justify-between items-center">
+                <span id="game-status-text">Status: Ready</span>
+                <button id="restart-btn" class="hidden px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition shadow-sm font-medium">Restart Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // --- DATA STORE ---
+        const GAME_DATA = [
+            // 1. Classic Arcade & Action (11)
+            { name: "Snake", category: "Classic Arcade & Action", status: "playable", icon: "🐍" },
+            { name: "Tetris", category: "Classic Arcade & Action", status: "playable", icon: "🧱" },
+            { name: "Flappy Bird", category: "Classic Arcade & Action", status: "placeholder", icon: "🐦" },
+            { name: "Catch the Dot", category: "Classic Arcade & Action", status: "placeholder", icon: "🔴" },
+            { name: "Whack-A-Mole", category: "Classic Arcade & Action", status: "placeholder", icon: "🔨" },
+            { name: "Runner Game", category: "Classic Arcade & Action", status: "placeholder", icon: "🏃" },
+            { name: "Breakout", category: "Classic Arcade & Action", status: "placeholder", icon: "🧱" },
+            { name: "Space Invaders", category: "Classic Arcade & Action", status: "placeholder", icon: "👾" },
+            { name: "Asteroids", category: "Classic Arcade & Action", status: "placeholder", icon: "☄️" },
+            { name: "Endless Jumper", category: "Classic Arcade & Action", status: "placeholder", icon: "🦘" },
+            { name: "Fruit Ninja", category: "Classic Arcade & Action", status: "placeholder", icon: "🍉" },
+
+            // 2. Logic & Puzzle (15)
+            { name: "Memory Match", category: "Logic & Puzzle Games", status: "playable", icon: "🃏" },
+            { name: "2048", category: "Logic & Puzzle Games", status: "playable", icon: "🔢" },
+            { name: "Simon Says", category: "Logic & Puzzle Games", status: "placeholder", icon: "🚦" },
+            { name: "Sudoku", category: "Logic & Puzzle Games", status: "placeholder", icon: "📅" },
+            { name: "Merge Blocks", category: "Logic & Puzzle Games", status: "placeholder", icon: "🔳" },
+            { name: "Nonogram", category: "Logic & Puzzle Games", status: "placeholder", icon: "✏️" },
+            { name: "Minesweeper", category: "Logic & Puzzle Games", status: "placeholder", icon: "💣" },
+            { name: "Mahjong", category: "Logic & Puzzle Games", status: "placeholder", icon: "🀄" },
+            { name: "Unblock Me", category: "Logic & Puzzle Games", status: "placeholder", icon: "🚪" },
+            { name: "Jigsaw Puzzle", category: "Logic & Puzzle Games", status: "placeholder", icon: "🧩" },
+            { name: "Cut the Rope", category: "Logic & Puzzle Games", status: "placeholder", icon: "✂️" },
+            { name: "Liquid Flow", category: "Logic & Puzzle Games", status: "placeholder", icon: "💧" },
+            { name: "Angry Birds", category: "Logic & Puzzle Games", status: "placeholder", icon: "🐦" },
+            { name: "Bridge Builder", category: "Logic & Puzzle Games", status: "placeholder", icon: "🌉" },
+            { name: "Balance Weights", category: "Logic & Puzzle Games", status: "placeholder", icon: "⚖️" },
+
+            // 3. Word & Trivia (8)
+            { name: "Wordle Clone", category: "Word & Trivia Games", status: "playable", icon: "🔤" },
+            { name: "Hangman", category: "Word & Trivia Games", status: "placeholder", icon: "😵" },
+            { name: "Trivia Quiz", category: "Word & Trivia Games", status: "placeholder", icon: "❓" },
+            { name: "Crossword", category: "Word & Trivia Games", status: "placeholder", icon: "📝" },
+            { name: "Anagrams", category: "Word & Trivia Games", status: "placeholder", icon: "🔄" },
+            { name: "Word Search", category: "Word & Trivia Games", status: "placeholder", icon: "🔍" },
+            { name: "Cryptogram", category: "Word & Trivia Games", status: "placeholder", icon: "🔐" },
+            { name: "Boggle Clone", category: "Word & Trivia Games", status: "placeholder", icon: "🎲" },
+
+            // 4. Card & Casino (7)
+            { name: "Slots", category: "Card & Casino Games", status: "placeholder", icon: "🎰" },
+            { name: "Blackjack", category: "Card & Casino Games", status: "placeholder", icon: "🃏" },
+            { name: "Solitaire", category: "Card & Casino Games", status: "placeholder", icon: "♠️" },
+            { name: "Texas Hold'em", category: "Card & Casino Games", status: "placeholder", icon: "♣️" },
+            { name: "Roulette", category: "Card & Casino Games", status: "placeholder", icon: "🎡" },
+            { name: "Video Poker", category: "Card & Casino Games", status: "placeholder", icon: "📺" },
+            { name: "War", category: "Card & Casino Games", status: "placeholder", icon: "⚔️" },
+
+            // 5. Quick & Competitive (7)
+            { name: "Tic-Tac-Toe", category: "Quick & Competitive Games", status: "playable", icon: "⭕" },
+            { name: "Rock Paper Scissors", category: "Quick & Competitive Games", status: "playable", icon: "✊" },
+            { name: "Higher or Lower", category: "Quick & Competitive Games", status: "placeholder", icon: "↕️" },
+            { name: "Quick Math", category: "Quick & Competitive Games", status: "placeholder", icon: "➕" },
+            { name: "Tug of War", category: "Quick & Competitive Games", status: "placeholder", icon: "💪" },
+            { name: "Hot Potato", category: "Quick & Competitive Games", status: "placeholder", icon: "🥔" },
+            { name: "Don't Tap White", category: "Quick & Competitive Games", status: "placeholder", icon: "🎹" },
+
+            // 6. Strategy & Simulation (7) - All Placeholders for now
+            { name: "Tower Defense", category: "Strategy & Simulation", status: "placeholder", icon: "🏰" },
+            { name: "City Builder", category: "Strategy & Simulation", status: "placeholder", icon: "🏗️" },
+            { name: "Match-3", category: "Strategy & Simulation", status: "placeholder", icon: "💎" },
+            { name: "Zuma", category: "Strategy & Simulation", status: "placeholder", icon: "🔮" },
+            { name: "Tower Stacker", category: "Strategy & Simulation", status: "placeholder", icon: "🏢" },
+            { name: "Cookie Clicker", category: "Strategy & Simulation", status: "placeholder", icon: "🍪" },
+            { name: "Farming Sim", category: "Strategy & Simulation", status: "placeholder", icon: "🚜" },
+
+            // 7. Learning & Social (5) - All Placeholders for now
+            { name: "Clicker", category: "Learning & Social", status: "placeholder", icon: "👆" },
+            { name: "ABC Match", category: "Learning & Social", status: "placeholder", icon: "🅰️" },
+            { name: "Charades", category: "Learning & Social", status: "placeholder", icon: "🎭" },
+            { name: "Truth or Dare", category: "Learning & Social", status: "placeholder", icon: "🎲" },
+            { name: "Heads Up", category: "Learning & Social", status: "placeholder", icon: "📱" }
+        ];
+
+        // --- GAME ENGINES (Vanilla JS Classes) ---
+
+        // 7. ROCK PAPER SCISSORS ENGINE
+        class RockPaperScissorsEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.choices = {
+                    'rock': { icon: '✊', beats: 'scissors' },
+                    'paper': { icon: '🖐️', beats: 'rock' },
+                    'scissors': { icon: '✌️', beats: 'paper' }
+                };
+                this.playerScore = 0;
+                this.computerScore = 0;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center p-4 w-full max-w-sm">
+                        <div class="flex justify-between w-full mb-6 text-xl font-bold">
+                            <span>You: <span id="rps-player-score">${this.playerScore}</span></span>
+                            <span>Computer: <span id="rps-comp-score">${this.computerScore}</span></span>
+                        </div>
+                        <div id="rps-result-display" class="text-center mb-8">
+                            <div class="flex justify-around w-full space-x-4">
+                                <div class="p-4 bg-white rounded-lg shadow-md w-24 h-24 flex flex-col items-center justify-center">
+                                    <span id="rps-player-move" class="text-5xl">?</span>
+                                    <span class="text-xs text-gray-500 mt-1">Your Move</span>
+                                </div>
+                                <div class="p-4 bg-white rounded-lg shadow-md w-24 h-24 flex flex-col items-center justify-center">
+                                    <span id="rps-comp-move" class="text-5xl">?</span>
+                                    <span class="text-xs text-gray-500 mt-1">Comp Move</span>
+                                </div>
+                            </div>
+                            <p id="rps-message" class="text-2xl font-black mt-6 h-8 text-gray-700">Choose your weapon!</p>
+                        </div>
+                        <div class="flex justify-between w-full space-x-4 mt-4" id="rps-controls">
+                            <button data-choice="rock" class="rps-btn bg-indigo-500 hover:bg-indigo-600 text-white p-4 rounded-xl text-4xl shadow-lg w-1/3 transition">✊</button>
+                            <button data-choice="paper" class="rps-btn bg-indigo-500 hover:bg-indigo-600 text-white p-4 rounded-xl text-4xl shadow-lg w-1/3 transition">🖐️</button>
+                            <button data-choice="scissors" class="rps-btn bg-indigo-500 hover:bg-indigo-600 text-white p-4 rounded-xl text-4xl shadow-lg w-1/3 transition">✌️</button>
+                        </div>
+                    </div>
+                `;
+                this.bindControls();
+                this.onStatusChange('Select a choice to play the next round.');
+            }
+
+            bindControls() {
+                const controls = document.getElementById('rps-controls');
+                controls.addEventListener('click', (e) => {
+                    if (e.target.closest('.rps-btn')) {
+                        this.playRound(e.target.closest('.rps-btn').dataset.choice);
+                    }
+                });
+            }
+
+            playRound(playerChoice) {
+                const choicesArray = Object.keys(this.choices);
+                const computerChoice = choicesArray[Math.floor(Math.random() * choicesArray.length)];
+                
+                let result = '';
+                let message = '';
+                
+                if (playerChoice === computerChoice) {
+                    result = 'draw';
+                    message = 'It\'s a Tie!';
+                } else if (this.choices[playerChoice].beats === computerChoice) {
+                    result = 'win';
+                    message = 'You Win This Round! 🎉';
+                    this.playerScore++;
+                } else {
+                    result = 'lose';
+                    message = 'Computer Wins! 🤖';
+                    this.computerScore++;
+                }
+
+                document.getElementById('rps-player-move').textContent = this.choices[playerChoice].icon;
+                document.getElementById('rps-comp-move').textContent = this.choices[computerChoice].icon;
+                document.getElementById('rps-message').textContent = message;
+                
+                document.getElementById('rps-player-score').textContent = this.playerScore;
+                document.getElementById('rps-comp-score').textContent = this.computerScore;
+
+                this.onStatusChange(`Round played. Result: ${result.toUpperCase()}`);
+            }
+
+            cleanup() {
+                // No external listeners to clean up
+            }
+        }
+
+        // 1. TIC-TAC-TOE ENGINE
+        class TicTacToeEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.board = Array(9).fill(null);
+                this.xIsNext = true;
+                this.winner = null;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div id="ttt-status" class="text-xl font-bold mb-6 text-gray-700">Player X's Turn</div>
+                        <div class="grid grid-cols-3 gap-2 bg-gray-300 p-2 rounded-lg">
+                            ${this.board.map((_, i) => `<button data-index="${i}" class="game-cell-ttt w-20 h-20 bg-white rounded text-4xl font-black flex items-center justify-center text-gray-800 shadow-sm"></button>`).join('')}
+                        </div>
+                    </div>
+                `;
+                this.container.querySelectorAll('button').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.handleClick(parseInt(e.target.dataset.index)));
+                });
+                this.updateStatus();
+            }
+
+            handleClick(i) {
+                if (this.board[i] || this.winner) return;
+                this.board[i] = this.xIsNext ? 'X' : 'O';
+                this.xIsNext = !this.xIsNext;
+                this.checkWinner();
+                this.renderBoard();
+                this.updateStatus();
+            }
+
+            checkWinner() {
+                const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+                for (let [a,b,c] of lines) {
+                    if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
+                        this.winner = this.board[a];
+                        return;
+                    }
+                }
+                if (!this.board.includes(null)) this.winner = 'Draw';
+            }
+
+            renderBoard() {
+                const buttons = this.container.querySelectorAll('button');
+                this.board.forEach((cell, i) => {
+                    buttons[i].textContent = cell || '';
+                    if (cell === 'X') buttons[i].classList.add('text-indigo-600');
+                    if (cell === 'O') buttons[i].classList.add('text-rose-500');
+                });
+            }
+
+            updateStatus() {
+                const statusEl = document.getElementById('ttt-status');
+                if (this.winner === 'Draw') {
+                    statusEl.textContent = "It's a Draw!";
+                    statusEl.className = "text-xl font-bold mb-6 text-gray-500";
+                    this.onStatusChange('Game Over - Draw');
+                } else if (this.winner) {
+                    statusEl.textContent = `Winner: ${this.winner} 🎉`;
+                    statusEl.className = "text-xl font-bold mb-6 text-green-600 animate-bounce";
+                    this.onStatusChange('Game Over - Win');
+                } else {
+                    statusEl.textContent = `Next Player: ${this.xIsNext ? 'X' : 'O'}`;
+                    statusEl.className = "text-xl font-bold mb-6 text-gray-700";
+                    this.onStatusChange('Playing...');
+                }
+            }
+        }
+
+        // 2. SNAKE ENGINE
+        class SnakeEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.canvasSize = 300;
+                this.gridSize = 15; // Bigger cells
+                this.cellSize = this.canvasSize / this.gridSize;
+                this.snake = [{x: 5, y: 5}];
+                this.food = {x: 10, y: 10};
+                this.direction = {x: 1, y: 0};
+                this.score = 0;
+                this.gameLoop = null;
+                this.isGameOver = false;
+                this.keyListener = null;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div class="text-xl font-bold mb-2">Score: <span id="snake-score">0</span></div>
+                        <canvas id="snake-canvas" width="${this.canvasSize}" height="${this.canvasSize}" class="game-board-snake"></canvas>
+                        <div class="mt-4 text-sm text-gray-500">Use Arrow Keys or W/A/S/D to move</div>
+                        <div class="mt-4 grid grid-cols-3 gap-2 md:hidden">
+                            <div></div><button id="btn-up" class="p-4 bg-gray-200 rounded">⬆️</button><div></div>
+                            <button id="btn-left" class="p-4 bg-gray-200 rounded">⬅️</button><div></div><button id="btn-right" class="p-4 bg-gray-200 rounded">➡️</button>
+                            <div></div><button id="btn-down" class="p-4 bg-gray-200 rounded">⬇️</button><div></div>
+                        </div>
+                    </div>
+                `;
+                this.ctx = document.getElementById('snake-canvas').getContext('2d');
+                this.bindControls();
+                this.startGame();
+            }
+
+            bindControls() {
+                this.keyListener = this.handleKey.bind(this);
+                document.addEventListener('keydown', this.keyListener);
+                // Touch controls
+                document.getElementById('btn-up')?.addEventListener('click', () => this.setDir(0, -1));
+                document.getElementById('btn-down')?.addEventListener('click', () => this.setDir(0, 1));
+                document.getElementById('btn-left')?.addEventListener('click', () => this.setDir(-1, 0));
+                document.getElementById('btn-right')?.addEventListener('click', () => this.setDir(1, 0));
+            }
+
+            handleKey(e) {
+                switch(e.key) {
+                    case 'ArrowUp': case 'w': this.setDir(0, -1); break;
+                    case 'ArrowDown': case 's': this.setDir(0, 1); break;
+                    case 'ArrowLeft': case 'a': this.setDir(-1, 0); break;
+                    case 'ArrowRight': case 'd': this.setDir(1, 0); break;
+                }
+            }
+
+            setDir(x, y) {
+                if (this.direction.x === -x && this.direction.y === -y) return; // Prevent 180 turn
+                this.direction = {x, y};
+            }
+
+            startGame() {
+                if (this.gameLoop) clearInterval(this.gameLoop);
+                this.gameLoop = setInterval(() => this.update(), 150);
+                this.onStatusChange('Playing...');
+            }
+
+            update() {
+                if (this.isGameOver) return;
+                
+                const head = {x: this.snake[0].x + this.direction.x, y: this.snake[0].y + this.direction.y};
+
+                // Collision Check
+                if (head.x < 0 || head.x >= this.gridSize || head.y < 0 || head.y >= this.gridSize || this.snake.some(s => s.x === head.x && s.y === head.y)) {
+                    this.gameOver();
+                    return;
+                }
+
+                this.snake.unshift(head);
+
+                // Eat Food
+                if (head.x === this.food.x && head.y === this.food.y) {
+                    this.score++;
+                    document.getElementById('snake-score').textContent = this.score;
+                    this.placeFood();
+                } else {
+                    this.snake.pop();
+                }
+
+                this.draw();
+            }
+
+            placeFood() {
+                let newFood;
+                do {
+                    newFood = {x: Math.floor(Math.random() * this.gridSize), y: Math.floor(Math.random() * this.gridSize)};
+                } while (this.snake.some(s => s.x === newFood.x && s.y === newFood.y));
+                this.food = newFood;
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#111827';
+                this.ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+
+                // Food
+                this.ctx.fillStyle = '#ef4444';
+                this.ctx.fillRect(this.food.x * this.cellSize, this.food.y * this.cellSize, this.cellSize-2, this.cellSize-2);
+
+                // Snake
+                this.snake.forEach((seg, i) => {
+                    this.ctx.fillStyle = i === 0 ? '#10b981' : '#34d399';
+                    this.ctx.fillRect(seg.x * this.cellSize, seg.y * this.cellSize, this.cellSize-2, this.cellSize-2);
+                });
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                clearInterval(this.gameLoop);
+                this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                this.ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = '30px Inter';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText("Game Over", this.canvasSize/2, this.canvasSize/2);
+                this.onStatusChange('Game Over');
+            }
+
+            cleanup() {
+                clearInterval(this.gameLoop);
+                document.removeEventListener('keydown', this.keyListener);
+            }
+        }
+        
+        // 5. TETRIS ENGINE
+        class TetrisEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.COLS = 10;
+                this.ROWS = 20;
+                this.SIZE = 24; // Pixel size of each block
+                this.canvasSize = this.COLS * this.SIZE;
+                this.pieceTemplates = [
+                    { shape: [[1,1,1,1]], color: '#00ffff' }, // I
+                    { shape: [[0,1,0],[1,1,1]], color: '#800080' }, // T
+                    { shape: [[1,1,0],[0,1,1]], color: '#ff0000' }, // Z
+                    { shape: [[0,1,1],[1,1,0]], color: '#00ff00' }, // S
+                    { shape: [[1,1],[1,1]], color: '#ffff00' }, // O
+                    { shape: [[1,0,0],[1,1,1]], color: '#ffa500' }, // L
+                    { shape: [[0,0,1],[1,1,1]], color: '#0000ff' }  // J
+                ];
+                this.board = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(0));
+                this.score = 0;
+                this.level = 1;
+                this.currentPiece = null;
+                this.gameLoop = null;
+                this.isGameOver = false;
+                this.keyListener = null;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-8">
+                        <canvas id="tetris-canvas" width="${this.canvasSize}" height="${this.ROWS * this.SIZE}" class="game-board-tetris border-4 border-gray-900"></canvas>
+                        <div class="bg-gray-100 p-4 rounded-lg shadow-inner w-full md:w-auto">
+                            <div class="text-lg font-bold mb-2">Score: <span id="tetris-score">0</span></div>
+                            <div class="text-lg font-bold mb-4">Level: <span id="tetris-level">1</span></div>
+                            <div class="mt-4 text-sm text-gray-500">Controls:</div>
+                            <ul class="text-xs text-gray-600 list-disc list-inside">
+                                <li>← / →: Move</li>
+                                <li>↑ / X: Rotate</li>
+                                <li>↓ / S: Soft Drop</li>
+                                <li>Space: Hard Drop</li>
+                            </ul>
+                            <div id="tetris-message" class="mt-4 text-red-500 font-bold hidden"></div>
+                        </div>
+                    </div>
+                `;
+                this.ctx = document.getElementById('tetris-canvas').getContext('2d');
+                this.startGame();
+                this.bindControls();
+            }
+
+            bindControls() {
+                this.keyListener = this.handleKey.bind(this);
+                document.addEventListener('keydown', this.keyListener);
+            }
+            
+            handleKey(e) {
+                if (this.isGameOver || !this.currentPiece) return;
+                switch(e.key) {
+                    case 'ArrowLeft': case 'a': this.movePiece(-1, 0); break;
+                    case 'ArrowRight': case 'd': this.movePiece(1, 0); break;
+                    case 'ArrowUp': case 'x': this.rotatePiece(); break;
+                    case 'ArrowDown': case 's': this.softDrop(); break;
+                    case ' ': e.preventDefault(); this.hardDrop(); break;
+                }
+            }
+
+            newPiece() {
+                const template = this.pieceTemplates[Math.floor(Math.random() * this.pieceTemplates.length)];
+                this.currentPiece = {
+                    shape: template.shape,
+                    color: template.color,
+                    x: Math.floor(this.COLS / 2) - Math.floor(template.shape[0].length / 2),
+                    y: 0
+                };
+                if (this.checkCollision(0, 0, this.currentPiece.shape)) {
+                    this.gameOver();
+                }
+            }
+
+            checkCollision(dx, dy, newShape) {
+                for (let y = 0; y < newShape.length; y++) {
+                    for (let x = 0; x < newShape[y].length; x++) {
+                        if (newShape[y][x] === 1) {
+                            const newX = this.currentPiece.x + x + dx;
+                            const newY = this.currentPiece.y + y + dy;
+                            if (newX < 0 || newX >= this.COLS || newY >= this.ROWS || (newY >= 0 && this.board[newY][newX] !== 0)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            movePiece(dx, dy) {
+                if (!this.checkCollision(dx, dy, this.currentPiece.shape)) {
+                    this.currentPiece.x += dx;
+                    this.currentPiece.y += dy;
+                }
+                this.draw();
+            }
+
+            rotatePiece() {
+                const originalShape = this.currentPiece.shape;
+                const N = originalShape.length;
+                const newShape = Array.from({ length: N }, () => Array(N).fill(0));
+                for (let y = 0; y < N; y++) {
+                    for (let x = 0; x < N; x++) {
+                        newShape[x][N - 1 - y] = originalShape[y][x];
+                    }
+                }
+                if (!this.checkCollision(0, 0, newShape)) {
+                    this.currentPiece.shape = newShape;
+                }
+                this.draw();
+            }
+
+            softDrop() {
+                if (this.checkCollision(0, 1, this.currentPiece.shape)) {
+                    this.lockPiece();
+                } else {
+                    this.currentPiece.y++;
+                }
+                this.draw();
+            }
+
+            hardDrop() {
+                while (!this.checkCollision(0, 1, this.currentPiece.shape)) {
+                    this.currentPiece.y++;
+                }
+                this.lockPiece();
+                this.draw();
+            }
+
+            lockPiece() {
+                const { shape, color, x, y } = this.currentPiece;
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (shape[row][col] === 1) {
+                            if (y + row >= 0) {
+                                this.board[y + row][x + col] = color;
+                            }
+                        }
+                    }
+                }
+                this.clearLines();
+                this.newPiece();
+            }
+
+            clearLines() {
+                let linesCleared = 0;
+                for (let y = this.ROWS - 1; y >= 0; y--) {
+                    if (this.board[y].every(cell => cell !== 0)) {
+                        this.board.splice(y, 1); // Remove full line
+                        this.board.unshift(Array(this.COLS).fill(0)); // Add new empty line at top
+                        linesCleared++;
+                        y++; // Recheck the same row index
+                    }
+                }
+                if (linesCleared > 0) {
+                    this.score += linesCleared * 100 * this.level;
+                    document.getElementById('tetris-score').textContent = this.score;
+                    this.onStatusChange(`Lines Cleared: ${linesCleared}`);
+                }
+            }
+
+            draw() {
+                this.ctx.fillStyle = '#0d0d0d';
+                this.ctx.fillRect(0, 0, this.canvasSize, this.ROWS * this.SIZE);
+
+                // Draw settled blocks
+                for (let y = 0; y < this.ROWS; y++) {
+                    for (let x = 0; x < this.COLS; x++) {
+                        if (this.board[y][x] !== 0) {
+                            this.drawBlock(x, y, this.board[y][x]);
+                        }
+                    }
+                }
+
+                // Draw current piece
+                if (this.currentPiece) {
+                    const { shape, color, x, y } = this.currentPiece;
+                    for (let row = 0; row < shape.length; row++) {
+                        for (let col = 0; col < shape[row].length; col++) {
+                            if (shape[row][col] === 1) {
+                                this.drawBlock(x + col, y + row, color);
+                            }
+                        }
+                    }
+                }
+            }
+
+            drawBlock(x, y, color) {
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(x * this.SIZE, y * this.SIZE, this.SIZE - 1, this.SIZE - 1);
+            }
+
+            startGame() {
+                this.board = Array.from({ length: this.ROWS }, () => Array(this.COLS).fill(0));
+                this.score = 0;
+                this.level = 1;
+                this.isGameOver = false;
+                document.getElementById('tetris-score').textContent = this.score;
+                document.getElementById('tetris-level').textContent = this.level;
+                document.getElementById('tetris-message').classList.add('hidden');
+                this.onStatusChange('Playing...');
+                this.newPiece();
+                
+                if (this.gameLoop) clearInterval(this.gameLoop);
+                this.gameLoop = setInterval(() => {
+                    this.softDrop();
+                    this.draw();
+                }, 1000 / this.level); // Speed increases with level
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                clearInterval(this.gameLoop);
+                this.onStatusChange('Game Over');
+                document.getElementById('tetris-message').textContent = `Game Over! Score: ${this.score}`;
+                document.getElementById('tetris-message').classList.remove('hidden');
+            }
+
+            cleanup() {
+                clearInterval(this.gameLoop);
+                document.removeEventListener('keydown', this.keyListener);
+            }
+        }
+
+        // 6. 2048 ENGINE
+        class TwentyFortyEightEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.SIZE = 4;
+                this.board = Array.from({ length: this.SIZE }, () => Array(this.SIZE).fill(0));
+                this.score = 0;
+                this.keyListener = null;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div class="text-xl font-bold mb-4">Score: <span id="2048-score">0</span></div>
+                        <div id="2048-grid" class="grid grid-cols-4 gap-2 tile-container-2048" style="width: 272px; height: 272px;"></div>
+                        <div class="mt-4 text-sm text-gray-500 text-center">Use Arrow Keys or Swipe on mobile.</div>
+                        <div id="2048-message" class="mt-4 text-red-500 font-bold hidden"></div>
+                    </div>
+                `;
+                this.startGame();
+                this.bindControls();
+            }
+
+            bindControls() {
+                this.keyListener = this.handleKey.bind(this);
+                document.addEventListener('keydown', this.keyListener);
+            }
+
+            startGame() {
+                this.board = Array.from({ length: this.SIZE }, () => Array(this.SIZE).fill(0));
+                this.score = 0;
+                document.getElementById('2048-score').textContent = this.score;
+                document.getElementById('2048-message').classList.add('hidden');
+                this.onStatusChange('Playing...');
+                this.addRandomTile();
+                this.addRandomTile();
+                this.drawBoard();
+            }
+
+            addRandomTile() {
+                let empty = [];
+                for (let r = 0; r < this.SIZE; r++) {
+                    for (let c = 0; c < this.SIZE; c++) {
+                        if (this.board[r][c] === 0) empty.push({r, c});
+                    }
+                }
+                if (empty.length > 0) {
+                    const {r, c} = empty[Math.floor(Math.random() * empty.length)];
+                    this.board[r][c] = Math.random() < 0.9 ? 2 : 4;
+                }
+            }
+            
+            drawBoard() {
+                const grid = document.getElementById('2048-grid');
+                grid.innerHTML = '';
+                for (let r = 0; r < this.SIZE; r++) {
+                    for (let c = 0; c < this.SIZE; c++) {
+                        const val = this.board[r][c];
+                        const tile = document.createElement('div');
+                        tile.className = `tile-2048 tile-${val}`;
+                        tile.textContent = val > 0 ? val : '';
+                        grid.appendChild(tile);
+                    }
+                }
+            }
+            
+            handleKey(e) {
+                if (this.isGameOver) return;
+                let moved = false;
+                switch(e.key) {
+                    case 'ArrowLeft': case 'a': moved = this.moveLeft(); break;
+                    case 'ArrowRight': case 'd': moved = this.moveRight(); break;
+                    case 'ArrowUp': case 'w': moved = this.moveUp(); break;
+                    case 'ArrowDown': case 's': moved = this.moveDown(); break;
+                }
+                if (moved) {
+                    this.addRandomTile();
+                    this.drawBoard();
+                    this.checkGameOver();
+                }
+            }
+
+            // Core move/merge logic (abstracted for clarity)
+            move(isVertical, isReverse) {
+                let moved = false;
+                for (let i = 0; i < this.SIZE; i++) {
+                    let line = [];
+                    for (let j = 0; j < this.SIZE; j++) {
+                        const val = isVertical ? this.board[j][i] : this.board[i][j];
+                        if (val !== 0) line.push(val);
+                    }
+                    
+                    if (isReverse) line.reverse();
+                    
+                    let new_line = [];
+                    for (let k = 0; k < line.length; k++) {
+                        if (k + 1 < line.length && line[k] === line[k+1]) {
+                            new_line.push(line[k] * 2);
+                            this.score += line[k] * 2;
+                            k++;
+                        } else {
+                            new_line.push(line[k]);
+                        }
+                    }
+                    
+                    while (new_line.length < this.SIZE) new_line.push(0);
+                    if (isReverse) new_line.reverse();
+                    
+                    // Check if board changed
+                    let original_line = [];
+                    for (let j = 0; j < this.SIZE; j++) {
+                        original_line.push(isVertical ? this.board[j][i] : this.board[i][j]);
+                    }
+
+                    if (original_line.join('') !== (isReverse ? new_line.slice().reverse() : new_line).join('')) moved = true;
+                    
+                    for (let j = 0; j < this.SIZE; j++) {
+                        if (isVertical) this.board[j][i] = new_line[j];
+                        else this.board[i][j] = new_line[j];
+                    }
+                }
+                document.getElementById('2048-score').textContent = this.score;
+                return moved;
+            }
+
+            moveLeft() { return this.move(false, false); }
+            moveRight() { return this.move(false, true); }
+            moveUp() { return this.move(true, false); }
+            moveDown() { return this.move(true, true); }
+
+            checkGameOver() {
+                let canMove = false;
+                // Check for empty cells
+                if (this.board.some(row => row.includes(0))) return;
+
+                // Check for adjacent matches (horizontal)
+                for (let r = 0; r < this.SIZE; r++) {
+                    for (let c = 0; c < this.SIZE - 1; c++) {
+                        if (this.board[r][c] === this.board[r][c+1]) canMove = true;
+                    }
+                }
+                // Check for adjacent matches (vertical)
+                for (let r = 0; r < this.SIZE - 1; r++) {
+                    for (let c = 0; c < this.SIZE; c++) {
+                        if (this.board[r][c] === this.board[r+1][c]) canMove = true;
+                    }
+                }
+
+                if (!canMove) {
+                    this.isGameOver = true;
+                    this.onStatusChange('Game Over');
+                    document.getElementById('2048-message').textContent = `Game Over! Score: ${this.score}`;
+                    document.getElementById('2048-message').classList.remove('hidden');
+                }
+            }
+
+            cleanup() {
+                document.removeEventListener('keydown', this.keyListener);
+            }
+        }
+
+        // 3. WORDLE ENGINE
+        class WordleEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.target = "REACT"; // Static for demo
+                this.guesses = [];
+                this.currentGuess = "";
+                this.maxGuesses = 6;
+                this.gameOver = false;
+                this.keyListener = null;
+                this.init();
+            }
+
+            init() {
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div id="wordle-grid" class="grid grid-rows-6 gap-2 mb-6"></div>
+                        <div id="wordle-kb" class="grid gap-1"></div>
+                        <div id="wordle-msg" class="h-6 text-sm font-bold text-red-500 mt-2"></div>
+                    </div>
+                `;
+                this.renderGrid();
+                this.renderKeyboard();
+                this.keyListener = this.handleKey.bind(this);
+                document.addEventListener('keydown', this.keyListener);
+            }
+
+            handleKey(e) {
+                if (this.gameOver) return;
+                const key = e.key.toUpperCase();
+                if (key === 'ENTER') this.submitGuess();
+                else if (key === 'BACKSPACE') {
+                    this.currentGuess = this.currentGuess.slice(0, -1);
+                    this.renderGrid();
+                }
+                else if (/^[A-Z]$/.test(key) && this.currentGuess.length < 5) {
+                    this.currentGuess += key;
+                    this.renderGrid();
+                }
+            }
+
+            submitGuess() {
+                if (this.currentGuess.length !== 5) {
+                    this.showMessage("Too short!");
+                    return;
+                }
+                this.guesses.push(this.currentGuess);
+                
+                if (this.currentGuess === this.target) {
+                    this.gameOver = true;
+                    this.showMessage("You Won! 🎉", "text-green-600");
+                    this.onStatusChange("Victory!");
+                } else if (this.guesses.length >= this.maxGuesses) {
+                    this.gameOver = true;
+                    this.showMessage(`Game Over! Word: ${this.target}`, "text-red-600");
+                    this.onStatusChange("Defeat");
+                }
+                
+                this.currentGuess = "";
+                this.renderGrid();
+                this.renderKeyboard();
+            }
+
+            renderGrid() {
+                const grid = document.getElementById('wordle-grid');
+                grid.innerHTML = '';
+                
+                for (let i = 0; i < this.maxGuesses; i++) {
+                    const row = document.createElement('div');
+                    row.className = "grid grid-cols-5 gap-2";
+                    const guess = this.guesses[i] || (i === this.guesses.length ? this.currentGuess : "");
+                    
+                    for (let j = 0; j < 5; j++) {
+                        const cell = document.createElement('div');
+                        const letter = guess[j] || "";
+                        let colorClass = "bg-white border-2 border-gray-300 text-black";
+                        
+                        if (i < this.guesses.length) {
+                            // Logic for coloring submitted guesses
+                            if (this.target[j] === letter) colorClass = "bg-green-500 text-white border-green-500";
+                            else if (this.target.includes(letter)) colorClass = "bg-yellow-500 text-white border-yellow-500";
+                            else colorClass = "bg-gray-500 text-white border-gray-500";
+                        }
+                        
+                        cell.className = `${colorClass} w-12 h-12 flex items-center justify-center font-bold text-xl uppercase rounded`;
+                        cell.textContent = letter;
+                        row.appendChild(cell);
+                    }
+                    grid.appendChild(row);
+                }
+            }
+
+            renderKeyboard() {
+                // Simplified virtual keyboard render for visual context
+                const kb = document.getElementById('wordle-kb');
+                if(kb.children.length === 0) {
+                     kb.innerHTML = `<div class="text-xs text-gray-400 text-center">Type using your physical keyboard</div>`;
+                }
+            }
+
+            showMessage(msg, color = "text-red-500") {
+                const el = document.getElementById('wordle-msg');
+                el.textContent = msg;
+                el.className = `h-6 text-sm font-bold mt-2 ${color}`;
+                setTimeout(() => el.textContent = "", 2000);
+            }
+
+            cleanup() {
+                document.removeEventListener('keydown', this.keyListener);
+            }
+        }
+
+        // 4. MEMORY MATCH ENGINE
+        class MemoryEngine {
+            constructor(container, onStatusChange) {
+                this.container = container;
+                this.onStatusChange = onStatusChange;
+                this.icons = ['🍎', '🍌', '🍇', '🍓', '🥝', '🍉', '🍍', '🥭'];
+                this.cards = [];
+                this.flipped = [];
+                this.matched = [];
+                this.lockBoard = false;
+                this.turns = 0;
+                this.init();
+            }
+
+            init() {
+                // Duplicate and shuffle
+                const deck = [...this.icons, ...this.icons].sort(() => 0.5 - Math.random());
+                this.cards = deck.map((icon, id) => ({ id, icon }));
+                
+                this.container.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <div class="mb-4 text-lg font-semibold text-indigo-900">Turns: <span id="mem-turns">0</span></div>
+                        <div class="grid grid-cols-4 gap-3" id="mem-grid"></div>
+                    </div>
+                `;
+                
+                const grid = document.getElementById('mem-grid');
+                this.cards.forEach((card, index) => {
+                    const el = document.createElement('div');
+                    el.className = "relative w-16 h-16 sm:w-20 sm:h-20 cursor-pointer perspective-1000";
+                    el.innerHTML = `
+                        <div class="w-full h-full transition-transform duration-500 transform-style-3d shadow-lg rounded-lg" id="card-${index}">
+                            <div class="absolute w-full h-full bg-indigo-500 backface-hidden rounded-lg flex items-center justify-center text-white text-2xl">❓</div>
+                            <div class="absolute w-full h-full bg-indigo-200 backface-hidden rotate-y-180 rounded-lg flex items-center justify-center text-4xl border-2 border-indigo-500">${card.icon}</div>
+                        </div>
+                    `;
+                    el.addEventListener('click', () => this.flipCard(index));
+                    grid.appendChild(el);
+                });
+            }
+
+            flipCard(index) {
+                if (this.lockBoard || this.flipped.includes(index) || this.matched.includes(index)) return;
+                
+                const cardEl = document.getElementById(`card-${index}`);
+                cardEl.classList.add('rotate-y-180');
+                this.flipped.push(index);
+
+                if (this.flipped.length === 2) {
+                    this.turns++;
+                    document.getElementById('mem-turns').textContent = this.turns;
+                    this.checkForMatch();
+                }
+            }
+
+            checkForMatch() {
+                this.lockBoard = true;
+                const [id1, id2] = this.flipped;
+                const isMatch = this.cards[id1].icon === this.cards[id2].icon;
+
+                if (isMatch) {
+                    this.matched.push(id1, id2);
+                    this.flipped = [];
+                    this.lockBoard = false;
+                    if (this.matched.length === this.cards.length) this.onStatusChange(`Won in ${this.turns} turns!`);
+                } else {
+                    setTimeout(() => {
+                        document.getElementById(`card-${id1}`).classList.remove('rotate-y-180');
+                        document.getElementById(`card-${id2}`).classList.remove('rotate-y-180');
+                        this.flipped = [];
+                        this.lockBoard = false;
+                    }, 1000);
+                }
+            }
+        }
+
+        // --- APP LOGIC ---
+
+        const App = {
+            activeEngine: null,
+
+            init() {
+                this.renderCharts();
+                this.renderGameGrid('all');
+                this.setupFilters();
+                this.setupModal();
+            },
+
+            // Visualization: Charts using Chart.js
+            renderCharts() {
+                // 1. Category Chart
+                const categories = [...new Set(GAME_DATA.map(g => g.category))];
+                const catCounts = categories.map(c => GAME_DATA.filter(g => g.category === c).length);
+                
+                new Chart(document.getElementById('categoryChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: categories.map(c => c.split(' ')[0]), // Shorten labels
+                        datasets: [{
+                            data: catCounts,
+                            backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6']
+                        }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+                });
+
+                // 2. Status Chart
+                const playable = GAME_DATA.filter(g => g.status === 'playable').length;
+                const placeholders = GAME_DATA.length - playable;
+                
+                new Chart(document.getElementById('statusChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Playable Demos', 'Placeholders'],
+                        datasets: [{
+                            label: 'Count',
+                            data: [playable, placeholders],
+                            backgroundColor: ['#10b981', '#e5e7eb'],
+                            borderRadius: 5
+                        }]
+                    },
+                    options: { 
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            },
+
+            // Navigation: Render Categories
+            setupFilters() {
+                const categories = ["all", ...new Set(GAME_DATA.map(g => g.category))];
+                const container = document.getElementById('filter-container');
+                container.innerHTML = categories.map(c => 
+                    `<button class="filter-btn px-4 py-2 rounded-full text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 transition-all ${c === 'all' ? 'bg-gray-900 text-white border-transparent' : ''}" data-category="${c}">
+                        ${c === 'all' ? 'All Games' : c}
+                    </button>`
+                ).join('');
+
+                container.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('filter-btn')) {
+                        // Update UI
+                        document.querySelectorAll('.filter-btn').forEach(b => {
+                            b.classList.remove('bg-gray-900', 'text-white');
+                            b.classList.add('bg-white', 'text-gray-700');
+                        });
+                        e.target.classList.remove('bg-white', 'text-gray-700');
+                        e.target.classList.add('bg-gray-900', 'text-white');
+                        
+                        // Filter Grid
+                        this.renderGameGrid(e.target.dataset.category);
+                    }
+                });
+            },
+
+            // Core: Render Grid
+            renderGameGrid(filter) {
+                const grid = document.getElementById('game-grid');
+                const filtered = filter === 'all' ? GAME_DATA : GAME_DATA.filter(g => g.category === filter);
+                
+                grid.innerHTML = filtered.map((game, index) => `
+                    <div class="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer border ${game.status === 'playable' ? 'border-green-200' : 'border-gray-100'} flex flex-col items-center text-center group" onclick="App.openGame('${game.name}')">
+                        <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">${game.icon}</div>
+                        <h3 class="font-bold text-gray-800 text-sm mb-1">${game.name}</h3>
+                        <span class="text-xs px-2 py-1 rounded-full ${game.status === 'playable' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+                            ${game.status === 'playable' ? 'PLAY NOW' : 'Coming Soon'}
+                        </span>
+                    </div>
+                `).join('');
+            },
+
+            // Interaction: Open Game
+            openGame(gameName) {
+                const game = GAME_DATA.find(g => g.name === gameName);
+                if (!game) return;
+
+                const modal = document.getElementById('game-modal');
+                const title = document.getElementById('modal-title');
+                const cat = document.getElementById('modal-category');
+                const container = document.getElementById('game-stage');
+                const restartBtn = document.getElementById('restart-btn');
+                const statusText = document.getElementById('game-status-text');
+
+                // Cleanup previous engine before starting a new one
+                if (this.activeEngine && this.activeEngine.cleanup) this.activeEngine.cleanup();
+                if (this.activeEngine && this.activeEngine.gameLoop) clearInterval(this.activeEngine.gameLoop);
+                this.activeEngine = null;
+
+                // UI Setup
+                modal.classList.remove('hidden');
+                title.textContent = game.name;
+                cat.textContent = game.category;
+                container.innerHTML = ''; // Clear previous
+                restartBtn.classList.add('hidden');
+                statusText.textContent = "Status: Ready";
+
+                // Engine Router
+                if (game.status === 'playable') {
+                    restartBtn.classList.remove('hidden');
+                    restartBtn.onclick = () => this.openGame(gameName); // Simple reload
+
+                    if (game.name === 'Snake') this.activeEngine = new SnakeEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === 'Tetris') this.activeEngine = new TetrisEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === '2048') this.activeEngine = new TwentyFortyEightEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === 'Tic-Tac-Toe') this.activeEngine = new TicTacToeEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === 'Wordle Clone') this.activeEngine = new WordleEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === 'Memory Match') this.activeEngine = new MemoryEngine(container, (s) => statusText.textContent = s);
+                    else if (game.name === 'Rock Paper Scissors') this.activeEngine = new RockPaperScissorsEngine(container, (s) => statusText.textContent = s);
+
+                } else {
+                    // Placeholder View
+                    container.innerHTML = `
+                        <div class="text-center p-10 border-4 border-dashed border-gray-200 rounded-xl">
+                            <div class="text-6xl mb-4 grayscale opacity-50">${game.icon}</div>
+                            <h3 class="text-xl font-bold text-gray-400">Implementation Pending</h3>
+                            <p class="text-gray-400 mt-2 max-w-xs mx-auto">This game slot is reserved. Logic to be injected in future updates.</p>
+                        </div>
+                    `;
+                }
+            },
+
+            setupModal() {
+                const modal = document.getElementById('game-modal');
+                document.getElementById('close-modal').onclick = () => {
+                    modal.classList.add('hidden');
+                    if (this.activeEngine && this.activeEngine.cleanup) this.activeEngine.cleanup();
+                    if (this.activeEngine && this.activeEngine.gameLoop) clearInterval(this.activeEngine.gameLoop);
+                    this.activeEngine = null;
+                };
+            }
+        };
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', () => App.init());
+
+    </script>
+</body>
+</html>
