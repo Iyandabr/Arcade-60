@@ -59,5 +59,7 @@ export function useSocket() {
     setRematch(true);
   }, [setRematch]);
 
-  return { createRoom, joinRoom, joinQueue, leaveQueue, makeMove, nextRound, voteRematch };
+  const reset = useCallback(() => useGameStore.getState().reset(), []);
+
+  return { createRoom, joinRoom, joinQueue, leaveQueue, makeMove, nextRound, voteRematch, reset };
 }

@@ -1,4 +1,3 @@
-import React from "react";
 import { motion } from "framer-motion";
 import type { TicTacToeState, Symbol, TicTacToeMove } from "@arcade/types";
 

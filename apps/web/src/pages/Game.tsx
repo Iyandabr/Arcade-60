@@ -1,4 +1,3 @@
-import React from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { GameShell } from "../components/shell/GameShell";
 import { TicTacToe } from "../components/games/tictactoe/TicTacToe";

@@ -1,4 +1,4 @@
-import React from "react";
+import { Fragment } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/Button";
@@ -31,12 +31,12 @@ export function GameShell({ title, players, yourSymbol, phase, rematchRequested,
         <span className="font-arcade text-neon text-[10px] neon">{title}</span>
         <div className="flex gap-2 text-xs">
           {players?.map((p, i) => (
-            <React.Fragment key={p.symbol}>
+            <Fragment key={p.symbol}>
               {i > 0 && <span className="text-gray-600">vs</span>}
               <span className={p.symbol === yourSymbol ? "text-neon font-semibold" : "text-gray-400"}>
                 {p.symbol === yourSymbol ? "You" : p.name}
               </span>
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
       </header>

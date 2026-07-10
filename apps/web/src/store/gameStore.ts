@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { GameId, GameState, GameStartPayload, Symbol } from "@arcade/types";
+import type { GameState, GameStartPayload, Symbol } from "@arcade/types";
 
 export type Phase = "idle" | "waiting" | "playing" | "finished" | "opponent_left";
 
