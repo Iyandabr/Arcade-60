@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { height: 100%; }
+  body {
+    @apply bg-bg text-white min-h-full;
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { min-height: 100dvh; display: flex; flex-direction: column; }
+}
+
+@layer utilities {
+  .neon       { text-shadow: 0 0 12px #00ff88, 0 0 24px #00ff8855; }
+  .neon-box   { box-shadow: 0 0 0 1px #00ff8860, 0 0 20px #00ff8825; }
+  .scanline   {
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,.08) 2px, rgba(0,0,0,.08) 4px
+    );
+    pointer-events: none;
+  }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
